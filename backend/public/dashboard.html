@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel WhatsApp</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f0f2f5; --border: #e2e5ea;
+    --text: #15181d; --muted: #646b78; --accent: #128c7e; --accent-ink: #ffffff;
+    --ok: #1a9e5c; --ok-bg: #e3f6ec; --warn: #b7791f; --warn-bg: #fdf3e1;
+    --bad: #c93a3a; --bad-bg: #fbe7e7; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --surface: #171b21; --surface-2: #1e232b; --border: #2a303a;
+      --text: #e8eaed; --muted: #9aa3b0; --accent: #25b39e; --accent-ink: #06201c;
+      --ok: #3ccf87; --ok-bg: #12301f; --warn: #e6b04f; --warn-bg: #33270f;
+      --bad: #f07070; --bad-bg: #3a1717; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); display: grid; place-items: center; color: var(--accent-ink); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .stat .value { font-size: 20px; font-weight: 650; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 12px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .inst-head { display: flex; gap: 12px; align-items: center; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--surface-2); object-fit: cover; flex: none;
+    display: grid; place-items: center; font-weight: 700; color: var(--muted); }
+  .inst-name { font-weight: 650; font-size: 15px; word-break: break-all; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .b-ok { color: var(--ok); background: var(--ok-bg); }
+  .b-warn { color: var(--warn); background: var(--warn-bg); }
+  .b-bad { color: var(--bad); background: var(--bad-bg); }
+  .counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .counts div { background: var(--surface-2); border-radius: 8px; padding: 8px; text-align: center; }
+  .counts b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .counts span { font-size: 11px; color: var(--muted); }
+  .meta { font-size: 12px; color: var(--muted); display: grid; gap: 2px; margin-bottom: 12px; }
+  button, .btn { font: inherit; font-size: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  button:hover { background: var(--surface-2); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.05); }
+  button.danger { color: var(--bad); }
+  button:disabled { opacity: .55; cursor: default; }
+  input { font: inherit; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+  input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  section { margin-top: 22px; }
+  .events { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .events th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .events td { padding: 7px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .events td.text { max-width: 420px; overflow-wrap: anywhere; }
+  .table-wrap { overflow-x: auto; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 5px; background: var(--surface-2); color: var(--muted); margin-left: 4px; }
+  .empty { text-align: center; color: var(--muted); padding: 28px 8px; }
+  dialog { border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); padding: 20px; width: min(420px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .qr { width: 100%; max-width: 300px; aspect-ratio: 1; display: block; margin: 12px auto; background: #fff; border-radius: 8px; }
+  .pair { font: 700 26px/1.2 ui-monospace, Consolas, monospace; letter-spacing: 3px; text-align: center; margin: 16px 0; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+    padding: 10px 16px; border-radius: 10px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; }
+  #login { max-width: 380px; margin: 12vh auto 0; }
+  #login input { width: 100%; margin: 10px 0 12px; }
+  .hidden { display: none !important; }
+  @media (max-width: 560px) { .events .hide-sm { display: none; } .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="card hidden">
+    <h1><span class="logo">✆</span> Painel WhatsApp</h1>
+    <p class="muted">Digite o token do painel (BACKEND_TOKEN do backend).</p>
+    <form id="loginForm">
+      <input id="tokenInput" type="password" autocomplete="current-password" placeholder="Token" required>
+      <button class="primary" type="submit">Entrar</button>
+    </form>
+    <p id="loginErr" class="small" style="color:var(--bad)"></p>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1><span class="logo">✆</span> Painel WhatsApp</h1>
+      <div class="row">
+        <span id="lastUpdate" class="small muted"></span>
+        <button id="refreshBtn">Atualizar</button>
+        <button id="logoutBtn">Sair</button>
+      </div>
+    </header>
+
+    <div class="stats">
+      <div class="card stat"><div class="label">Evolution API</div><div class="value" id="sEvo">—</div><div class="sub" id="sEvoSub"></div></div>
+      <div class="card stat"><div class="label">Instâncias conectadas</div><div class="value" id="sConn">—</div><div class="sub" id="sConnSub"></div></div>
+      <div class="card stat"><div class="label">Memória do servidor</div><div class="value" id="sMem">—</div><div class="sub" id="sMemSub"></div></div>
+      <div class="card stat"><div class="label">Webhooks recebidos</div><div class="value" id="sHooks">—</div><div class="sub" id="sHooksSub"></div></div>
+    </div>
+
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">Instâncias</h2>
+      <form id="createForm" class="row">
+        <input id="newName" placeholder="nome-da-empresa" pattern="[a-zA-Z0-9_\-]{1,40}" required>
+        <button class="primary" type="submit">+ Nova instância</button>
+      </form>
+    </div>
+    <div id="instances" class="grid"></div>
+
+    <section class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0">Últimos eventos <span class="small muted">(desde o último reinício do backend)</span></h2>
+        <label class="row small"><input type="checkbox" id="hideGroups" checked> Ocultar grupos</label>
+      </div>
+      <div class="table-wrap">
+        <table class="events">
+          <thead><tr><th>Hora</th><th class="hide-sm">Instância</th><th>De</th><th>Mensagem</th></tr></thead>
+          <tbody id="events"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<dialog id="qrDialog">
+  <h2 id="qrTitle">Conectar</h2>
+  <p class="small muted">WhatsApp → Aparelhos conectados → Conectar um aparelho.</p>
+  <img id="qrImg" class="qr hidden" alt="QR Code">
+  <div id="pairCode" class="pair hidden"></div>
+  <p id="qrStatus" class="small muted" style="text-align:center"></p>
+  <form id="pairForm" class="row" style="margin-top:8px">
+    <input id="pairNumber" placeholder="Ou use código: 5588999999999" style="flex:1">
+    <button type="submit">Gerar código</button>
+  </form>
+  <div class="row" style="justify-content:flex-end;margin-top:14px"><button id="qrClose">Fechar</button></div>
+</dialog>
+
+<dialog id="testDialog">
+  <h2>Enviar mensagem de teste</h2>
+  <form id="testForm">
+    <p class="small muted" id="testFrom"></p>
+    <input id="testNumber" placeholder="Número com DDD: 88999999999" required style="width:100%;margin-bottom:8px">
+    <input id="testText" value="Teste do painel ✅" required style="width:100%">
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button type="button" id="testCancel">Cancelar</button>
+      <button class="primary" type="submit">Enviar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KEY = "painel_whatsapp_token";
+  let token = "";
+  try { token = localStorage.getItem(KEY) || ""; } catch {}
+  let instances = [];
+  let qrTimer = null, refreshTimer = null;
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmtNum = (n) => (n ?? 0).toLocaleString("pt-BR");
+  const fmtBytes = (b) => (b / 1024 ** 3).toFixed(1) + " GB";
+  const fmtUptime = (s) => { const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}min` : `${m}min`; };
+  const fmtTime = (iso) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—";
+  const fmtPhone = (n) => { if (!n) return "—"; const m = n.match(/^55(\d{2})(\d{4,5})(\d{4})$/); return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : "+" + n; };
+
+  function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 3500); }
+
+  async function api(path, opts = {}) {
+    const res = await fetch("/api" + path, { ...opts, headers: { "Content-Type": "application/json", "x-api-token": token, ...(opts.headers || {}) } });
+    if (res.status === 401) { showLogin("Token inválido."); throw new Error("401"); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data?.details?.response?.message ?? data?.error ?? res.status;
+      throw new Error(Array.isArray(detail) ? detail.join(", ") : typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    return data;
+  }
+
+  function showLogin(err = "") {
+    clearInterval(refreshTimer);
+    $("app").classList.add("hidden"); $("login").classList.remove("hidden");
+    $("loginErr").textContent = err; $("tokenInput").focus();
+  }
+  function showApp() { $("login").classList.add("hidden"); $("app").classList.remove("hidden"); }
+
+  const STATUS = { open: ["Conectado", "b-ok"], connecting: ["Conectando", "b-warn"], close: ["Desconectado", "b-bad"] };
+
+  function renderInstances() {
+    const el = $("instances");
+    if (!instances.length) { el.innerHTML = `<div class="card empty">Nenhuma instância ainda. Crie a primeira acima.</div>`; return; }
+    el.innerHTML = instances.map((i) => {
+      const [label, cls] = STATUS[i.status] || [i.status, "b-warn"];
+      const initials = esc((i.profileName || i.name).slice(0, 2).toUpperCase());
+      const avatar = i.profilePicUrl ? `<img class="avatar" src="${esc(i.profilePicUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">`
+        : `<div class="avatar">${initials}</div>`;
+      const c = i.counts || {};
+      const open = i.status === "open";
+      return `<div class="card" data-name="${esc(i.name)}">
+        <div class="inst-head">${avatar}
+          <div style="flex:1;min-width:0"><div class="inst-name">${esc(i.name)}</div>
+          <div class="small muted">${esc(i.profileName || "sem perfil")} · ${esc(fmtPhone(i.number))}</div></div>
+          <span class="badge ${cls}">${esc(label)}</span>
+        </div>
+        <div class="counts"><div><b>${fmtNum(c.Message)}</b><span>mensagens</span></div><div><b>${fmtNum(c.Contact)}</b><span>contatos</span></div><div><b>${fmtNum(c.Chat)}</b><span>conversas</span></div></div>
+        <div class="meta"><span>Criada: ${esc(fmtDate(i.createdAt))}</span>
+          <span>Webhook: <span data-webhook>verificando…</span></span>
+          ${i.disconnectionAt && !open ? `<span>Caiu em: ${esc(fmtDate(i.disconnectionAt))} (código ${esc(i.disconnectionReasonCode ?? "?")})</span>` : ""}</div>
+        <div class="row">
+          ${open ? `<button data-act="test" class="primary">Testar envio</button>` : `<button data-act="connect" class="primary">Conectar (QR)</button>`}
+          <button data-act="restart">Reiniciar</button>
+          ${open ? `<button data-act="logout" class="danger">Desconectar</button>` : ""}
+          <button data-act="delete" class="danger">Excluir</button>
+        </div></div>`;
+    }).join("");
+    instances.forEach(loadWebhook);
+  }
+
+  async function loadWebhook(i) {
+    const span = document.querySelector(`[data-name="${CSS.escape(i.name)}"] [data-webhook]`);
+    if (!span) return;
+    try {
+      const w = await api(`/instances/${encodeURIComponent(i.name)}/webhook`);
+      if (w && w.enabled) span.innerHTML = `<span style="color:var(--ok)">ativo</span>`;
+      else span.innerHTML = `<span style="color:var(--bad)">desligado</span> · <a href="#" data-fixhook="${esc(i.name)}">ativar</a>`;
+    } catch { span.textContent = "erro ao verificar"; }
+  }
+
+  function renderOverview(o) {
+    $("sEvo").textContent = o.evolution.online ? "Online" : "Offline";
+    $("sEvo").style.color = o.evolution.online ? "var(--ok)" : "var(--bad)";
+    $("sEvoSub").textContent = o.evolution.online ? `v${o.evolution.version} · WA ${o.evolution.whatsappWebVersion || "?"}` : "não respondeu";
+    const used = o.server.memTotal - o.server.memFree;
+    $("sMem").textContent = `${Math.round((used / o.server.memTotal) * 100)}%`;
+    $("sMemSub").textContent = `${fmtBytes(used)} de ${fmtBytes(o.server.memTotal)} · ligado há ${fmtUptime(o.server.uptimeSec)}`;
+    $("sHooks").textContent = fmtNum(o.backend.webhookCount);
+    $("sHooksSub").textContent = `backend ligado há ${fmtUptime(o.backend.uptimeSec)}`;
+  }
+
+  function renderCounts() {
+    const conn = instances.filter((i) => i.status === "open").length;
+    $("sConn").textContent = `${conn} / ${instances.length}`;
+    $("sConnSub").textContent = instances.length - conn ? `${instances.length - conn} precisam de atenção` : "todas ok";
+  }
+
+  async function loadEvents() {
+    const list = await api("/events");
+    const hide = $("hideGroups").checked;
+    const rows = list.filter((e) => e.event === "messages.upsert" ? !(hide && e.isGroup) : true).slice(0, 40);
+    $("events").innerHTML = rows.length ? rows.map((e) => {
+      if (e.event === "connection.update") return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td colspan="2" class="muted">Conexão: <b>${esc(e.state)}</b></td></tr>`;
+      if (e.event !== "messages.upsert") return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td colspan="2" class="muted">${esc(e.event)}</td></tr>`;
+      const who = e.fromMe ? "Você" : esc(e.pushName || e.from);
+      const tags = (e.isGroup ? `<span class="tag">grupo</span>` : "") + (e.fromMe ? `<span class="tag">enviada</span>` : "");
+      const body = e.text ? esc(e.text) : `<span class="muted">[${esc(e.type || "mídia")}]</span>`;
+      return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td>${who}${tags}</td><td class="text">${body}</td></tr>`;
+    }).join("") : `<tr><td colspan="4" class="empty">Nenhum evento ainda. Mande uma mensagem para um número conectado.</td></tr>`;
+  }
+
+  async function refresh() {
+    try {
+      const [o, list] = await Promise.all([api("/overview"), api("/instances")]);
+      showApp();
+      renderOverview(o);
+      instances = list; renderInstances(); renderCounts();
+      await loadEvents();
+      $("lastUpdate").textContent = "Atualizado " + new Date().toLocaleTimeString("pt-BR");
+    } catch (e) { if (e.message !== "401") toast("Erro ao atualizar: " + e.message); }
+  }
+
+  function startAutoRefresh() { clearInterval(refreshTimer); if ($("app").classList.contains("hidden")) return; refreshTimer = setInterval(() => { if (!document.hidden && !$("qrDialog").open) refresh(); }, 10000); }
+
+  // ---------- QR / conexão ----------
+  let qrInstance = null;
+  async function openQr(name, number) {
+    qrInstance = name;
+    $("qrTitle").textContent = `Conectar "${name}"`;
+    if (!$("qrDialog").open) $("qrDialog").showModal();
+    await pullQr(number);
+    clearInterval(qrTimer);
+    let ticks = 0;
+    qrTimer = setInterval(async () => {
+      ticks++;
+      const list = await api("/instances").catch(() => null);
+      const inst = list?.find((i) => i.name === qrInstance);
+      if (inst?.status === "open") { closeQr(); toast(`"${qrInstance}" conectado!`); refresh(); return; }
+      if (!number && ticks % 8 === 0) pullQr(); // QR novo a cada ~24 s
+    }, 3000);
+  }
+  async function pullQr(number) {
+    $("qrStatus").textContent = "Gerando…";
+    try {
+      const q = await api(`/instances/${encodeURIComponent(qrInstance)}/connect` + (number ? `?number=${encodeURIComponent(number)}` : ""));
+      if (q.state === "open") { closeQr(); toast("Já está conectado."); refresh(); return; }
+      if (number && q.pairingCode) {
+        $("qrImg").classList.add("hidden"); $("pairCode").classList.remove("hidden");
+        $("pairCode").textContent = q.pairingCode.replace(/(.{4})(.{4})/, "$1-$2");
+        $("qrStatus").textContent = "Digite esse código em: Conectar com número de telefone.";
+      } else if (q.qr) {
+        $("pairCode").classList.add("hidden"); $("qrImg").classList.remove("hidden");
+        $("qrImg").src = q.qr;
+        $("qrStatus").textContent = "Aguardando leitura… o QR se renova sozinho.";
+      } else { $("qrStatus").textContent = "Sem QR agora. Tente Reiniciar a instância."; }
+    } catch (e) { $("qrStatus").textContent = "Erro: " + e.message; }
+  }
+  function closeQr() { clearInterval(qrTimer); qrInstance = null; if ($("qrDialog").open) $("qrDialog").close(); }
+
+  // ---------- Eventos de UI ----------
+  $("loginForm").addEventListener("submit", (ev) => {
+    ev.preventDefault(); token = $("tokenInput").value.trim();
+    try { localStorage.setItem(KEY, token); } catch {}
+    refresh().then(startAutoRefresh);
+  });
+  $("logoutBtn").addEventListener("click", () => { token = ""; try { localStorage.removeItem(KEY); } catch {} showLogin(); });
+  $("refreshBtn").addEventListener("click", refresh);
+  $("hideGroups").addEventListener("change", () => loadEvents().catch(() => {}));
+  $("qrClose").addEventListener("click", closeQr);
+  $("qrDialog").addEventListener("close", () => clearInterval(qrTimer));
+  $("pairForm").addEventListener("submit", (ev) => { ev.preventDefault(); const n = $("pairNumber").value.replace(/\D/g, ""); if (n && qrInstance) openQr(qrInstance, n); });
+
+  $("createForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("newName").value.trim();
+    try {
+      await api("/instances", { method: "POST", body: JSON.stringify({ name }) });
+      $("newName").value = ""; toast(`Instância "${name}" criada.`);
+      await refresh(); openQr(name);
+    } catch (e) { toast("Não foi possível criar: " + e.message); }
+  });
+
+  let testInstance = null;
+  $("testCancel").addEventListener("click", () => $("testDialog").close());
+  $("testForm").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    try {
+      await api(`/instances/${encodeURIComponent(testInstance)}/test`, { method: "POST", body: JSON.stringify({ number: $("testNumber").value, text: $("testText").value }) });
+      $("testDialog").close(); toast("Mensagem enviada.");
+    } catch (e) { toast("Falhou: " + e.message); }
+  });
+
+  $("instances").addEventListener("click", async (ev) => {
+    const fix = ev.target.closest("[data-fixhook]");
+    if (fix) { ev.preventDefault(); const n = fix.dataset.fixhook;
+      try { await api(`/instances/${encodeURIComponent(n)}/webhook`, { method: "POST" }); toast("Webhook ativado."); refresh(); } catch (e) { toast("Erro: " + e.message); }
+      return; }
+    const btn = ev.target.closest("button[data-act]"); if (!btn) return;
+    const name = btn.closest("[data-name]").dataset.name, enc = encodeURIComponent(name);
+    const act = btn.dataset.act;
+    if (act === "connect") return openQr(name);
+    if (act === "test") { testInstance = name; $("testFrom").textContent = `Enviando por "${name}"`; $("testDialog").showModal(); return; }
+    const confirmMsg = { logout: `Desconectar o WhatsApp de "${name}"? Será preciso ler o QR de novo.`,
+      delete: `Excluir "${name}" de vez? O histórico salvo dessa instância será apagado.` }[act];
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    btn.disabled = true;
+    try {
+      if (act === "restart") await api(`/instances/${enc}/restart`, { method: "POST" });
+      if (act === "logout") await api(`/instances/${enc}/logout`, { method: "POST" });
+      if (act === "delete") await api(`/instances/${enc}`, { method: "DELETE" });
+      toast({ restart: "Reiniciando…", logout: "Desconectado.", delete: "Excluída." }[act]);
+      setTimeout(refresh, act === "restart" ? 2500 : 300);
+    } catch (e) { toast("Erro: " + e.message); btn.disabled = false; }
+  });
+
+  if (token) refresh().then(startAutoRefresh); else showLogin();
+})();
+</script>
+</body>
+</html>

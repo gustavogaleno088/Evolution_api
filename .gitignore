@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+*.log
+qrcode.png
+# cópia de trabalho da integração do Azero Clean (vive no repositório dele)
+azero_clean/

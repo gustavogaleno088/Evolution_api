@@ -1,0 +1,132 @@
+{
+  "info": {
+    "name": "Evolution API + Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "evo", "value": "http://SEU_IP:8080" },
+    { "key": "apikey", "value": "SUA_AUTHENTICATION_API_KEY" },
+    { "key": "instance", "value": "meu-whatsapp" },
+    { "key": "number", "value": "5511999999999" },
+    { "key": "backend", "value": "http://SEU_IP:3000" },
+    { "key": "backendToken", "value": "SEU_BACKEND_TOKEN" }
+  ],
+  "item": [
+    {
+      "name": "Evolution",
+      "item": [
+        {
+          "name": "1. Info do servidor",
+          "request": { "method": "GET", "url": "{{evo}}/" }
+        },
+        {
+          "name": "2. Criar instância",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{evo}}/instance/create",
+            "body": { "mode": "raw", "raw": "{\n  \"instanceName\": \"{{instance}}\",\n  \"qrcode\": true,\n  \"integration\": \"WHATSAPP-BAILEYS\"\n}" }
+          }
+        },
+        {
+          "name": "3. Gerar QR Code (connect)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }],
+            "url": "{{evo}}/instance/connect/{{instance}}"
+          }
+        },
+        {
+          "name": "3b. Código de pareamento (sem QR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }],
+            "url": "{{evo}}/instance/connect/{{instance}}?number={{number}}"
+          }
+        },
+        {
+          "name": "4. Estado da conexão",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }],
+            "url": "{{evo}}/instance/connectionState/{{instance}}"
+          }
+        },
+        {
+          "name": "5. Configurar webhook",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{evo}}/webhook/set/{{instance}}",
+            "body": { "mode": "raw", "raw": "{\n  \"webhook\": {\n    \"enabled\": true,\n    \"url\": \"{{backend}}/webhook/evolution\",\n    \"webhookByEvents\": false,\n    \"webhookBase64\": false,\n    \"events\": [\"MESSAGES_UPSERT\", \"CONNECTION_UPDATE\", \"QRCODE_UPDATED\"]\n  }\n}" }
+          }
+        },
+        {
+          "name": "6. Enviar texto",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{evo}}/message/sendText/{{instance}}",
+            "body": { "mode": "raw", "raw": "{\n  \"number\": \"{{number}}\",\n  \"text\": \"Olá da Evolution API!\"\n}" }
+          }
+        },
+        {
+          "name": "7. Enviar imagem",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{evo}}/message/sendMedia/{{instance}}",
+            "body": { "mode": "raw", "raw": "{\n  \"number\": \"{{number}}\",\n  \"mediatype\": \"image\",\n  \"mimetype\": \"image/png\",\n  \"caption\": \"Legenda\",\n  \"media\": \"https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png\",\n  \"fileName\": \"logo.png\"\n}" }
+          }
+        },
+        {
+          "name": "Listar instâncias",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }],
+            "url": "{{evo}}/instance/fetchInstances"
+          }
+        },
+        {
+          "name": "Logout (desconectar número)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "apikey", "value": "{{apikey}}" }],
+            "url": "{{evo}}/instance/logout/{{instance}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Backend",
+      "item": [
+        {
+          "name": "Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "x-api-token", "value": "{{backendToken}}" }],
+            "url": "{{backend}}/whatsapp/status"
+          }
+        },
+        {
+          "name": "Enviar texto",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-api-token", "value": "{{backendToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{backend}}/messages/text",
+            "body": { "mode": "raw", "raw": "{\n  \"number\": \"{{number}}\",\n  \"text\": \"Olá pelo meu backend!\"\n}" }
+          }
+        },
+        {
+          "name": "Enviar documento",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "x-api-token", "value": "{{backendToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{backend}}/messages/media",
+            "body": { "mode": "raw", "raw": "{\n  \"number\": \"{{number}}\",\n  \"mediatype\": \"document\",\n  \"mimetype\": \"application/pdf\",\n  \"media\": \"https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf\",\n  \"fileName\": \"teste.pdf\",\n  \"caption\": \"Segue o PDF\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
