@@ -75,7 +75,6 @@ export interface EvolutionInstance {
   disconnectionAt: string | null;
   createdAt: string;
   updatedAt: string;
-  _count?: { Message: number; Contact: number; Chat: number };
 }
 
 export function serverInfo() {
@@ -126,7 +125,8 @@ export function setWebhook(instance: string, url: string) {
       url,
       webhookByEvents: false,
       webhookBase64: false,
-      events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+      // Só o que o sistema envia e o estado da conexão; nunca as mensagens recebidas.
+      events: ["SEND_MESSAGE", "CONNECTION_UPDATE"],
     },
   });
 }

@@ -45,10 +45,6 @@
   .b-ok { color: var(--ok); background: var(--ok-bg); }
   .b-warn { color: var(--warn); background: var(--warn-bg); }
   .b-bad { color: var(--bad); background: var(--bad-bg); }
-  .counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
-  .counts div { background: var(--surface-2); border-radius: 8px; padding: 8px; text-align: center; }
-  .counts b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
-  .counts span { font-size: 11px; color: var(--muted); }
   .meta { font-size: 12px; color: var(--muted); display: grid; gap: 2px; margin-bottom: 12px; }
   button, .btn { font: inherit; font-size: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
     border-radius: 8px; padding: 7px 12px; cursor: pointer; }
@@ -107,7 +103,7 @@
       <div class="card stat"><div class="label">Evolution API</div><div class="value" id="sEvo">—</div><div class="sub" id="sEvoSub"></div></div>
       <div class="card stat"><div class="label">Instâncias conectadas</div><div class="value" id="sConn">—</div><div class="sub" id="sConnSub"></div></div>
       <div class="card stat"><div class="label">Memória do servidor</div><div class="value" id="sMem">—</div><div class="sub" id="sMemSub"></div></div>
-      <div class="card stat"><div class="label">Webhooks recebidos</div><div class="value" id="sHooks">—</div><div class="sub" id="sHooksSub"></div></div>
+      <div class="card stat"><div class="label">Enviadas pelo sistema</div><div class="value" id="sHooks">—</div><div class="sub" id="sHooksSub"></div></div>
     </div>
 
     <div class="row" style="justify-content:space-between;margin-bottom:12px">
@@ -121,12 +117,12 @@
 
     <section class="card">
       <div class="row" style="justify-content:space-between;margin-bottom:8px">
-        <h2 style="margin:0">Últimos eventos <span class="small muted">(desde o último reinício do backend)</span></h2>
-        <label class="row small"><input type="checkbox" id="hideGroups" checked> Ocultar grupos</label>
+        <h2 style="margin:0">Mensagens enviadas pelo sistema <span class="small muted">(desde o último reinício do backend)</span></h2>
+        <span class="small muted">🔒 Conversas pessoais do celular conectado não chegam ao painel.</span>
       </div>
       <div class="table-wrap">
         <table class="events">
-          <thead><tr><th>Hora</th><th class="hide-sm">Instância</th><th>De</th><th>Mensagem</th></tr></thead>
+          <thead><tr><th>Hora</th><th class="hide-sm">Instância</th><th>Para</th><th>Mensagem</th></tr></thead>
           <tbody id="events"></tbody>
         </table>
       </div>
@@ -210,7 +206,6 @@
       const initials = esc((i.profileName || i.name).slice(0, 2).toUpperCase());
       const avatar = i.profilePicUrl ? `<img class="avatar" src="${esc(i.profilePicUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">`
         : `<div class="avatar">${initials}</div>`;
-      const c = i.counts || {};
       const open = i.status === "open";
       return `<div class="card" data-name="${esc(i.name)}">
         <div class="inst-head">${avatar}
@@ -218,8 +213,7 @@
           <div class="small muted">${esc(i.profileName || "sem perfil")} · ${esc(fmtPhone(i.number))}</div></div>
           <span class="badge ${cls}">${esc(label)}</span>
         </div>
-        <div class="counts"><div><b>${fmtNum(c.Message)}</b><span>mensagens</span></div><div><b>${fmtNum(c.Contact)}</b><span>contatos</span></div><div><b>${fmtNum(c.Chat)}</b><span>conversas</span></div></div>
-        <div class="meta"><span>Criada: ${esc(fmtDate(i.createdAt))}</span>
+        <div class="meta" style="margin-top:14px"><span>Criada: ${esc(fmtDate(i.createdAt))}</span>
           <span>Webhook: <span data-webhook>verificando…</span></span>
           ${i.disconnectionAt && !open ? `<span>Caiu em: ${esc(fmtDate(i.disconnectionAt))} (código ${esc(i.disconnectionReasonCode ?? "?")})</span>` : ""}</div>
         <div class="row">
@@ -249,7 +243,7 @@
     const used = o.server.memTotal - o.server.memFree;
     $("sMem").textContent = `${Math.round((used / o.server.memTotal) * 100)}%`;
     $("sMemSub").textContent = `${fmtBytes(used)} de ${fmtBytes(o.server.memTotal)} · ligado há ${fmtUptime(o.server.uptimeSec)}`;
-    $("sHooks").textContent = fmtNum(o.backend.webhookCount);
+    $("sHooks").textContent = fmtNum(o.backend.sentCount);
     $("sHooksSub").textContent = `backend ligado há ${fmtUptime(o.backend.uptimeSec)}`;
   }
 
@@ -260,17 +254,12 @@
   }
 
   async function loadEvents() {
-    const list = await api("/events");
-    const hide = $("hideGroups").checked;
-    const rows = list.filter((e) => e.event === "messages.upsert" ? !(hide && e.isGroup) : true).slice(0, 40);
+    const rows = (await api("/events")).slice(0, 40);
     $("events").innerHTML = rows.length ? rows.map((e) => {
       if (e.event === "connection.update") return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td colspan="2" class="muted">Conexão: <b>${esc(e.state)}</b></td></tr>`;
-      if (e.event !== "messages.upsert") return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td colspan="2" class="muted">${esc(e.event)}</td></tr>`;
-      const who = e.fromMe ? "Você" : esc(e.pushName || e.from);
-      const tags = (e.isGroup ? `<span class="tag">grupo</span>` : "") + (e.fromMe ? `<span class="tag">enviada</span>` : "");
       const body = e.text ? esc(e.text) : `<span class="muted">[${esc(e.type || "mídia")}]</span>`;
-      return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td>${who}${tags}</td><td class="text">${body}</td></tr>`;
-    }).join("") : `<tr><td colspan="4" class="empty">Nenhum evento ainda. Mande uma mensagem para um número conectado.</td></tr>`;
+      return `<tr><td>${fmtTime(e.at)}</td><td class="hide-sm">${esc(e.instance)}</td><td>${esc(e.to)}</td><td class="text">${body}</td></tr>`;
+    }).join("") : `<tr><td colspan="4" class="empty">Nenhum envio ainda. Quando o sistema (ex.: Azero Clean) mandar uma mensagem, ela aparece aqui.</td></tr>`;
   }
 
   async function refresh() {
@@ -329,7 +318,6 @@
   });
   $("logoutBtn").addEventListener("click", () => { token = ""; try { localStorage.removeItem(KEY); } catch {} showLogin(); });
   $("refreshBtn").addEventListener("click", refresh);
-  $("hideGroups").addEventListener("change", () => loadEvents().catch(() => {}));
   $("qrClose").addEventListener("click", closeQr);
   $("qrDialog").addEventListener("close", () => clearInterval(qrTimer));
   $("pairForm").addEventListener("submit", (ev) => { ev.preventDefault(); const n = $("pairNumber").value.replace(/\D/g, ""); if (n && qrInstance) openQr(qrInstance, n); });

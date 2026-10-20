@@ -64,15 +64,15 @@ function instanceParam(req: Request, res: Response): string | null {
 }
 
 // ---------- Eventos recentes (memória) para o dashboard ----------
+// Privacidade: o webhook só assina SEND_MESSAGE (mensagens enviadas pela API, ou seja,
+// pelo sistema) e CONNECTION_UPDATE. As conversas pessoais do celular conectado
+// nunca chegam aqui; se chegarem (webhook antigo), são descartadas sem registro.
 
 interface RecentEvent {
   at: string;
   instance: string;
   event: string;
-  from?: string;
-  pushName?: string;
-  isGroup?: boolean;
-  fromMe?: boolean;
+  to?: string;
   type?: string;
   text?: string;
   state?: string;
@@ -81,26 +81,32 @@ interface RecentEvent {
 const MAX_EVENTS = 100;
 const recentEvents: RecentEvent[] = [];
 const startedAt = Date.now();
-let webhookCount = 0;
+let sentCount = 0;
 
-function recordEvent(payload: any) {
-  webhookCount++;
+/** 5588994396389 -> 55 88 9****-6389 */
+function maskNumber(jid: string): string {
+  const n = jid.split("@")[0].replace(/\D/g, "");
+  if (n.length < 8) return "****";
+  return `${n.slice(0, 2)} ${n.slice(2, 4)} ${n.slice(4, 5)}****-${n.slice(-4)}`;
+}
+
+function recordEvent(payload: any): RecentEvent | null {
   const d = payload.data ?? {};
   const item: RecentEvent = { at: new Date().toISOString(), instance: payload.instance, event: payload.event };
-  if (payload.event === "messages.upsert") {
-    const jid: string = d.key?.remoteJid ?? "";
-    item.from = jid.split("@")[0];
-    item.isGroup = jid.endsWith("@g.us");
-    item.fromMe = Boolean(d.key?.fromMe);
-    item.pushName = d.pushName;
+  if (payload.event === "send.message") {
+    sentCount++;
+    item.to = maskNumber(d.key?.remoteJid ?? "");
     item.type = d.messageType;
     const text: string | undefined = d.message?.conversation ?? d.message?.extendedTextMessage?.text;
-    if (text) item.text = text.slice(0, 160);
+    if (text) item.text = text.split("\n")[0].slice(0, 120);
   } else if (payload.event === "connection.update") {
     item.state = d.state;
+  } else {
+    return null;
   }
   recentEvents.unshift(item);
   recentEvents.length = Math.min(recentEvents.length, MAX_EVENTS);
+  return item;
 }
 
 // ---------- Rotas públicas / de integração ----------
@@ -146,24 +152,17 @@ app.post("/messages/media", requireToken, async (req, res) => {
   }
 });
 
-// Webhook da Evolution. Configure em /webhook/set/{instance} apontando para:
-//   http://SEU_IP:3000/webhook/evolution   (com webhookByEvents=false)
+// Webhook da Evolution (eventos SEND_MESSAGE e CONNECTION_UPDATE, webhookByEvents=false):
+//   http://SEU_IP:3000/webhook/evolution?secret=...
 app.post("/webhook/evolution", (req, res) => {
   if (WEBHOOK_SECRET && req.query.secret !== WEBHOOK_SECRET) return res.sendStatus(401);
 
   // Responde rápido; a Evolution reenvia se demorar/der erro.
   res.sendStatus(200);
 
-  const payload = req.body ?? {};
-  recordEvent(payload);
-  console.log("\n===== WEBHOOK", payload.event, new Date().toISOString(), "=====");
-  console.log(JSON.stringify(payload, null, 2));
-
-  if (payload.event === "messages.upsert" && !payload.data?.key?.fromMe) {
-    const d = payload.data;
-    const text = d?.message?.conversation ?? d?.message?.extendedTextMessage?.text ?? `[${d?.messageType}]`;
-    console.log(`>> Nova mensagem de ${d?.pushName} (${d?.key?.remoteJid}): ${text}`);
-  }
+  const item = recordEvent(req.body ?? {});
+  if (item?.event === "send.message") console.log(`[envio] ${item.instance} -> ${item.to} (${item.type})`);
+  if (item?.event === "connection.update") console.log(`[conexão] ${item.instance}: ${item.state}`);
 });
 
 // ---------- Dashboard ----------
@@ -195,7 +194,7 @@ api.get("/overview", async (_req, res) => {
   }
   res.json({
     evolution,
-    backend: { uptimeSec: Math.round((Date.now() - startedAt) / 1000), webhookCount },
+    backend: { uptimeSec: Math.round((Date.now() - startedAt) / 1000), sentCount },
     server: {
       hostname: os.hostname(),
       uptimeSec: Math.round(os.uptime()),
@@ -223,7 +222,6 @@ api.get("/instances", async (_req, res) => {
         disconnectionAt: i.disconnectionAt,
         createdAt: i.createdAt,
         updatedAt: i.updatedAt,
-        counts: i._count ?? null,
       })),
     );
   } catch (err) {
